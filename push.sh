@@ -13,10 +13,10 @@ echo "Staging all files..."
 git add -A
 
 echo "Committing..."
-git commit -m "Initial commit: GO Train schedule app (Unionville ↔ Union)"
+git commit -m "feat: add service alerts – badge + modal on affected trains"
 
 echo "Pushing to GitHub..."
 git push origin main
 
 echo ""
-echo "✅ Done! Code is on GitHub."
+echo "✅ Done! Vercel will auto-deploy from GitHub."
