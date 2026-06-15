@@ -13,10 +13,11 @@ echo "Staging all files..."
 git add -A
 
 echo "Committing..."
-git commit -m "feat: add service alerts – badge + modal on affected trains"
+git commit -m "feat: service alerts sheet with bell icon + GO-style cards" || echo "(nothing new to commit)"
 
 echo "Pushing to GitHub..."
 git push origin main
 
 echo ""
 echo "✅ Done! Vercel will auto-deploy from GitHub."
+echo "   https://vercel.com/jasonzzxs-projects/personal-go-train"

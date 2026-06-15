@@ -25,11 +25,7 @@ function toLocalDateStr(d: Date): string {
 function formatDisplayDate(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   const date = new Date(y, m - 1, d);
-  return date.toLocaleDateString('en-CA', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
+  return date.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 function getDefaultDate(): string {
@@ -43,8 +39,7 @@ function getDefaultDate(): string {
 }
 
 function getDefaultDirection(): Direction {
-  const hour = new Date().getHours();
-  return hour < 12 ? 'homeToOffice' : 'officeToHome';
+  return new Date().getHours() < 12 ? 'homeToOffice' : 'officeToHome';
 }
 
 function parseTime(time: string): number {
@@ -52,17 +47,10 @@ function parseTime(time: string): number {
 }
 
 // ──────────────────────────────────────────────────────────
-// Alert matching
+// Alert matching helpers
 // ──────────────────────────────────────────────────────────
 
-/**
- * NORTHBOUND (Union→Unionville) = officeToHome
- * SOUTHBOUND (Unionville→Union) = homeToOffice
- */
-function buildAlertMap(
-  alerts: ParsedAlert[],
-  direction: Direction
-): Map<string, ParsedAlert[]> {
+function buildAlertMap(alerts: ParsedAlert[], direction: Direction): Map<string, ParsedAlert[]> {
   const map = new Map<string, ParsedAlert[]>();
   for (const alert of alerts) {
     if (!alert.scheduledDeparture) continue;
@@ -78,126 +66,239 @@ function buildAlertMap(
 }
 
 // ──────────────────────────────────────────────────────────
-// Alert modal
+// Icons
 // ──────────────────────────────────────────────────────────
 
-function AlertModal({
-  alerts,
-  onClose,
-}: {
-  alerts: ParsedAlert[];
-  onClose: () => void;
-}) {
+function BellIcon({ className }: { className?: string }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      onClick={onClose}
-    >
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-      <div
-        className="relative w-full max-w-md bg-white rounded-t-2xl shadow-2xl pb-8 pt-4 px-4 max-h-[80vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+    </svg>
+  );
+}
 
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-xl">⚠️</span>
-          <h2 className="text-go-dark font-bold text-lg">Service Alert</h2>
-          <button
-            onClick={onClose}
-            className="ml-auto text-gray-400 hover:text-gray-600 text-2xl leading-none"
-          >
-            ×
-          </button>
-        </div>
+function CheckCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
 
-        <div className="space-y-4">
-          {alerts.map((alert, i) => (
-            <div key={i} className="border border-amber-200 rounded-xl p-4 bg-amber-50">
-              <div className="font-semibold text-amber-800 mb-2">{alert.title}</div>
-
-              {(alert.fromStation || alert.toStation) && (
-                <div className="flex items-center gap-1 text-sm text-gray-700 mb-1">
-                  <span className="font-medium">{alert.fromStation}</span>
-                  <span className="text-gray-400">→</span>
-                  <span className="font-medium">{alert.toStation}</span>
-                  {alert.direction !== 'both' && (
-                    <span className="ml-1 text-xs text-gray-400 uppercase">
-                      ({alert.direction})
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {alert.scheduledDeparture && (
-                <div className="text-sm text-gray-600 mb-1">
-                  <span className="text-gray-400">Scheduled: </span>
-                  <span className="font-mono font-medium">{alert.scheduledDeparture}</span>
-                  {alert.scheduledArrival && (
-                    <>
-                      <span className="text-gray-400"> – </span>
-                      <span className="font-mono font-medium">{alert.scheduledArrival}</span>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {alert.status && (
-                <div className="flex items-center gap-1.5 text-sm mb-1">
-                  <span
-                    className={`inline-block w-2 h-2 rounded-full ${
-                      alert.status.toLowerCase() === 'stopped'
-                        ? 'bg-red-500'
-                        : alert.status.toLowerCase() === 'moving'
-                        ? 'bg-green-500'
-                        : 'bg-amber-500'
-                    }`}
-                  />
-                  <span className="text-gray-700">
-                    Status: <span className="font-medium">{alert.status}</span>
-                  </span>
-                </div>
-              )}
-
-              {alert.reason && (
-                <div className="text-sm text-gray-600">
-                  <span className="text-gray-400">Reason: </span>
-                  {alert.reason}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <a
-          href="https://www.gotransit.com/en/service-updates?mode=t&code=ST"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-5 flex items-center justify-center gap-2 w-full border border-go-green text-go-green font-semibold py-2.5 rounded-xl text-sm"
-        >
-          View full service updates ↗
-        </a>
-      </div>
-    </div>
+function ArrowRightIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 20 20">
+      <path d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" />
+    </svg>
   );
 }
 
 // ──────────────────────────────────────────────────────────
-// Alert banner
+// Service Alerts Sheet
 // ──────────────────────────────────────────────────────────
 
-function AlertBanner({ count, onViewAll }: { count: number; onViewAll: () => void }) {
+function AlertCard({ alert }: { alert: ParsedAlert }) {
+  const isDelay = alert.title.toLowerCase().includes('delay');
+  const isCancel = alert.title.toLowerCase().includes('cancel');
+  const borderColor = isCancel ? 'border-red-500' : isDelay ? 'border-amber-500' : 'border-blue-400';
+  const iconBg = isCancel ? 'bg-red-100 text-red-600' : isDelay ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-600';
+
   return (
-    <button
-      onClick={onViewAll}
-      className="w-full flex items-center gap-2 bg-amber-50 border-b border-amber-200 px-4 py-2 text-left"
-    >
-      <span className="text-base">⚠️</span>
-      <span className="text-amber-800 text-xs font-medium flex-1">
-        {count} service alert{count !== 1 ? 's' : ''} on Stouffville line
-      </span>
-      <span className="text-amber-600 text-xs font-semibold shrink-0">Details →</span>
-    </button>
+    <div className={`bg-white rounded-xl shadow-sm border-l-4 ${borderColor} p-4 mb-3`}>
+      {/* Title */}
+      <div className="flex items-start gap-2 mb-2">
+        <span className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${iconBg}`}>
+          {isCancel ? '✕' : '!'}
+        </span>
+        <span className="font-semibold text-gray-900 text-sm leading-snug">{alert.title}</span>
+      </div>
+
+      {/* Route */}
+      {(alert.fromStation || alert.toStation) && (
+        <div className="flex items-center gap-1 text-sm text-gray-700 mb-1.5 ml-7">
+          <span className="font-medium text-gray-800">{alert.fromStation}</span>
+          <ArrowRightIcon className="w-3 h-3 text-gray-400 shrink-0" />
+          <span className="font-medium text-gray-800">{alert.toStation}</span>
+          {alert.direction !== 'both' && (
+            <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 border border-gray-300 rounded px-1 py-0.5">
+              {alert.direction === 'northbound' ? '↑ NB' : '↓ SB'}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Schedule */}
+      {alert.scheduledDeparture && (
+        <div className="flex items-center gap-1.5 text-sm text-gray-600 mb-1.5 ml-7">
+          <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>
+            Scheduled:{' '}
+            <span className="font-mono font-semibold text-gray-800">{alert.scheduledDeparture}</span>
+            {alert.scheduledArrival && (
+              <>
+                {' – '}
+                <span className="font-mono font-semibold text-gray-800">{alert.scheduledArrival}</span>
+              </>
+            )}
+          </span>
+        </div>
+      )}
+
+      {/* Status */}
+      {alert.status && (
+        <div className="flex items-center gap-1.5 text-sm mb-1.5 ml-7">
+          <span
+            className={`w-2 h-2 rounded-full shrink-0 ${
+              alert.status.toLowerCase() === 'stopped' ? 'bg-red-500' :
+              alert.status.toLowerCase() === 'moving' ? 'bg-green-500' : 'bg-amber-500'
+            }`}
+          />
+          <span className="text-gray-600">
+            Status: <span className="font-medium text-gray-800">{alert.status}</span>
+          </span>
+        </div>
+      )}
+
+      {/* Reason */}
+      {alert.reason && (
+        <div className="text-sm text-gray-500 ml-7 leading-relaxed">
+          <span className="text-gray-400">Reason: </span>{alert.reason}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ServiceAlertsSheet({
+  alerts,
+  loading,
+  available,
+  lastUpdated,
+  onClose,
+}: {
+  alerts: ParsedAlert[];
+  loading: boolean;
+  available: boolean;
+  lastUpdated: string | null;
+  onClose: () => void;
+}) {
+  const formattedTime = lastUpdated
+    ? new Date(lastUpdated).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+
+      {/* Sheet */}
+      <div
+        className="relative w-full max-w-md flex flex-col bg-gray-50 rounded-t-2xl max-h-[90vh]"
+        style={{ boxShadow: '0 -4px 30px rgba(0,0,0,0.25)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle */}
+        <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1 bg-white/40 rounded-full" />
+
+        {/* Sheet header — GO dark green, matching app header */}
+        <div className="bg-go-dark text-white px-4 pt-6 pb-4 rounded-t-2xl shrink-0">
+          <div className="flex items-center gap-3">
+            {/* ST line badge */}
+            <div
+              className="w-11 h-11 rounded-xl flex flex-col items-center justify-center font-extrabold text-white shrink-0"
+              style={{ backgroundColor: '#794500' }}
+            >
+              <span className="text-xs leading-none">ST</span>
+            </div>
+            <div>
+              <div className="font-bold text-base leading-tight">Stouffville Line</div>
+              <div className="text-white/60 text-xs">Service Updates</div>
+            </div>
+            <button
+              onClick={onClose}
+              className="ml-auto w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-white/20 text-lg leading-none"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="overflow-y-auto flex-1 px-4 pt-4 pb-2">
+          {loading ? (
+            /* Loading state */
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <div className="w-8 h-8 border-2 border-go-green border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm text-gray-500">Loading service updates…</span>
+            </div>
+          ) : !available ? (
+            /* API unavailable */
+            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3 text-center">
+              <div className="text-gray-400 text-2xl mb-2">📡</div>
+              <div className="text-sm font-medium text-gray-700 mb-1">Live data unavailable</div>
+              <div className="text-xs text-gray-500">Check the official GO Transit website for current alerts.</div>
+            </div>
+          ) : alerts.length === 0 ? (
+            /* Good service */
+            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+              <div className="flex items-center gap-3">
+                <CheckCircleIcon className="w-8 h-8 text-go-green shrink-0" />
+                <div>
+                  <div className="font-semibold text-gray-900">Good Service</div>
+                  <div className="text-xs text-gray-500 mt-0.5">No active alerts on Stouffville line</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Alert cards */
+            alerts.map((alert, i) => <AlertCard key={i} alert={alert} />)
+          )}
+
+          {/* Static special notice (always relevant) */}
+          {!loading && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+              <div className="flex items-start gap-2.5">
+                <div className="w-6 h-6 rounded-full bg-go-light flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-go-green text-xs font-bold">i</span>
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-800 mb-1">Special service Jun 10 – Jul 5</div>
+                  <div className="text-xs text-gray-600 leading-relaxed">
+                    Extra weekday trip added: Unionville GO{' '}
+                    <span className="font-mono font-semibold">16:36</span> → Union Station{' '}
+                    <span className="font-mono font-semibold">17:17</span> (FIFA World Cup 2026).
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 pt-3 pb-6 border-t border-gray-200 bg-white rounded-none shrink-0">
+          <a
+            href="https://www.gotransit.com/en/service-updates?mode=t&code=ST"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full bg-go-green text-white font-semibold py-3 rounded-xl text-sm"
+          >
+            View on gotransit.com
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+          {formattedTime && (
+            <div className="text-center text-xs text-gray-400 mt-2">
+              Last updated {formattedTime}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -216,21 +317,19 @@ function TrainCard({
   isNext: boolean;
   isPast: boolean;
   alerts: ParsedAlert[];
-  onAlertClick: (alerts: ParsedAlert[]) => void;
+  onAlertClick: () => void;
 }) {
   const hasAlert = alerts.length > 0;
 
   return (
-    <div
-      className={`
-        relative flex items-center rounded-xl px-4 py-3 mb-2 transition-all
-        ${isNext
-          ? 'bg-go-green shadow-md shadow-go-green/30 text-white'
-          : isPast
-          ? 'bg-white/60 text-gray-400'
-          : 'bg-white text-gray-800 shadow-sm'}
-      `}
-    >
+    <div className={`
+      relative flex items-center rounded-xl px-4 py-3 mb-2 transition-all
+      ${isNext
+        ? 'bg-go-green shadow-md shadow-go-green/30 text-white'
+        : isPast
+        ? 'bg-white/60 text-gray-400'
+        : 'bg-white text-gray-800 shadow-sm'}
+    `}>
       {isNext && (
         <span className="absolute -top-2 left-4 text-[10px] font-bold uppercase tracking-widest bg-go-accent text-white px-2 py-0.5 rounded-full">
           Next
@@ -241,9 +340,7 @@ function TrainCard({
         <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : 'text-go-dark'}`}>
           {trip.departure}
         </div>
-        <div className={`text-xs mt-0.5 ${isNext ? 'text-white/75' : 'text-gray-500'}`}>
-          depart
-        </div>
+        <div className={`text-xs mt-0.5 ${isNext ? 'text-white/75' : 'text-gray-500'}`}>depart</div>
       </div>
 
       <div className="flex flex-col items-center px-3">
@@ -252,13 +349,7 @@ function TrainCard({
         </div>
         <div className="flex items-center gap-1">
           <div className={`h-px w-8 ${isNext ? 'bg-white/50' : 'bg-gray-200'}`} />
-          <svg
-            className={`w-3 h-3 ${isNext ? 'text-white/70' : 'text-gray-300'}`}
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" />
-          </svg>
+          <ArrowRightIcon className={`w-3 h-3 ${isNext ? 'text-white/70' : 'text-gray-300'}`} />
         </div>
       </div>
 
@@ -266,19 +357,14 @@ function TrainCard({
         <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : 'text-go-dark'}`}>
           {trip.arrival}
         </div>
-        <div className={`text-xs mt-0.5 ${isNext ? 'text-white/75' : 'text-gray-500'}`}>
-          arrive
-        </div>
+        <div className={`text-xs mt-0.5 ${isNext ? 'text-white/75' : 'text-gray-500'}`}>arrive</div>
       </div>
 
       {hasAlert && (
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onAlertClick(alerts);
-          }}
+          onClick={(e) => { e.stopPropagation(); onAlertClick(); }}
           className={`
-            ml-2 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm
+            ml-2 shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm
             transition-transform active:scale-95
             ${isNext ? 'bg-white/20 hover:bg-white/30' : 'bg-amber-100 hover:bg-amber-200'}
           `}
@@ -296,10 +382,9 @@ function TrainCard({
 // ──────────────────────────────────────────────────────────
 
 function WeekendNotice({ direction }: { direction: Direction }) {
-  const href =
-    direction === 'homeToOffice'
-      ? 'https://www.gotransit.com/en/see-schedules?tripPoint=36888&departure=UI&destination=UN&transfers=true'
-      : 'https://www.gotransit.com/en/see-schedules?tripPoint=86388&departure=UN&destination=UI&transfers=true';
+  const href = direction === 'homeToOffice'
+    ? 'https://www.gotransit.com/en/see-schedules?tripPoint=36888&departure=UI&destination=UN&transfers=true'
+    : 'https://www.gotransit.com/en/see-schedules?tripPoint=86388&departure=UN&destination=UI&transfers=true';
 
   return (
     <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
@@ -310,7 +395,7 @@ function WeekendNotice({ direction }: { direction: Direction }) {
       </div>
       <h3 className="text-go-dark font-semibold text-lg mb-2">Weekend Schedule</h3>
       <p className="text-gray-500 text-sm mb-4">
-        Weekend schedule data is not yet embedded.<br />
+        Weekend data not yet embedded.<br />
         View it on the official GO Transit website.
       </p>
       <a
@@ -340,10 +425,12 @@ export default function Home() {
 
   // Alerts state
   const [alerts, setAlerts] = useState<ParsedAlert[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(true);
+  const [alertsAvailable, setAlertsAvailable] = useState(false);
   const [alertsLastUpdated, setAlertsLastUpdated] = useState<string | null>(null);
-  const [modalAlerts, setModalAlerts] = useState<ParsedAlert[] | null>(null);
+  const [showAlertsSheet, setShowAlertsSheet] = useState(false);
 
-  // Tick every minute
+  // Clock tick
   useEffect(() => {
     const update = () => {
       const now = new Date();
@@ -355,16 +442,19 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
-  // Fetch alerts every 5 minutes
+  // Fetch alerts every 5 min
   const fetchAlerts = useCallback(async () => {
     try {
       const res = await fetch('/api/alerts');
-      if (!res.ok) return;
+      if (!res.ok) throw new Error();
       const data = await res.json();
       setAlerts(data.alerts ?? []);
+      setAlertsAvailable(data.available ?? false);
       if (data.lastUpdated) setAlertsLastUpdated(data.lastUpdated);
     } catch {
-      // non-critical – ignore
+      setAlertsAvailable(false);
+    } finally {
+      setAlertsLoading(false);
     }
   }, []);
 
@@ -396,13 +486,7 @@ export default function Home() {
     [alerts, direction]
   );
 
-  const directionAlertCount = alertMap.size;
-
-  const allDirectionAlerts = useMemo(() => {
-    const result: ParsedAlert[] = [];
-    Array.from(alertMap.values()).forEach((list) => result.push(...list));
-    return result;
-  }, [alertMap]);
+  const totalAlerts = alerts.length;
 
   const scrollToNext = useCallback(() => {
     const el = document.getElementById('next-train');
@@ -411,8 +495,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col max-w-md mx-auto">
-      {/* Header */}
+      {/* ── Header ── */}
       <header className="sticky top-0 z-20 bg-go-dark text-white shadow-lg">
+        {/* Top bar */}
         <div className="flex items-center gap-3 px-4 pt-4 pb-2">
           <div className="bg-go-green rounded-full w-9 h-9 flex items-center justify-center font-extrabold text-sm shrink-0">
             GO
@@ -421,15 +506,23 @@ export default function Home() {
             <div className="font-bold text-base leading-tight">GO Train</div>
             <div className="text-white/60 text-xs">Stouffville Line</div>
           </div>
-          <div className="ml-auto flex items-center gap-3">
-            {directionAlertCount > 0 && (
-              <button
-                onClick={() => setModalAlerts(allDirectionAlerts)}
-                className="text-amber-400 text-xs font-semibold"
-              >
-                ⚠️ {directionAlertCount}
-              </button>
-            )}
+
+          <div className="ml-auto flex items-center gap-2">
+            {/* Service alerts icon — always visible */}
+            <button
+              onClick={() => setShowAlertsSheet(true)}
+              className="relative p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              title="Stouffville service updates"
+            >
+              <BellIcon className="w-5 h-5 text-white/70" />
+              {/* Badge dot — red when alerts, amber when loading done */}
+              {!alertsLoading && totalAlerts > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-go-dark" />
+              )}
+            </button>
+
+            <div className="w-px h-4 bg-white/20" />
+
             <a
               href={
                 direction === 'homeToOffice'
@@ -438,7 +531,7 @@ export default function Home() {
               }
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white/60 text-xs underline"
+              className="text-white/60 text-xs hover:text-white/90 transition-colors"
             >
               Official ↗
             </a>
@@ -450,9 +543,7 @@ export default function Home() {
           <button
             onClick={() => setDirection('homeToOffice')}
             className={`flex-1 py-2 px-2 rounded-lg text-sm font-semibold transition-all ${
-              direction === 'homeToOffice'
-                ? 'bg-go-green text-white shadow'
-                : 'text-white/70'
+              direction === 'homeToOffice' ? 'bg-go-green text-white shadow' : 'text-white/70'
             }`}
           >
             <div className="text-xs leading-tight">🏠 Unionville</div>
@@ -461,9 +552,7 @@ export default function Home() {
           <button
             onClick={() => setDirection('officeToHome')}
             className={`flex-1 py-2 px-2 rounded-lg text-sm font-semibold transition-all ${
-              direction === 'officeToHome'
-                ? 'bg-go-green text-white shadow'
-                : 'text-white/70'
+              direction === 'officeToHome' ? 'bg-go-green text-white shadow' : 'text-white/70'
             }`}
           >
             <div className="text-xs leading-tight">🏢 Union</div>
@@ -479,9 +568,7 @@ export default function Home() {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="flex-1 bg-white/10 text-white text-sm rounded-lg px-3 py-2 border border-white/20 focus:outline-none focus:border-white/50"
           />
-          <span className="text-white/60 text-xs shrink-0">
-            {formatDisplayDate(selectedDate)}
-          </span>
+          <span className="text-white/60 text-xs shrink-0">{formatDisplayDate(selectedDate)}</span>
           {isToday && nextIndex >= 0 && (
             <button
               onClick={scrollToNext}
@@ -493,26 +580,30 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Route summary bar */}
+      {/* Route bar */}
       <div className="bg-go-green text-white px-4 py-2 flex items-center gap-2 text-sm">
         <span className="font-semibold">
           {direction === 'homeToOffice' ? 'Unionville GO' : 'Union Station'}
         </span>
-        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" />
-        </svg>
+        <ArrowRightIcon className="w-4 h-4 shrink-0" />
         <span className="font-semibold">
           {direction === 'homeToOffice' ? 'Union Station' : 'Unionville GO'}
         </span>
         <span className="ml-auto text-white/70 capitalize text-xs">{serviceType}</span>
       </div>
 
-      {/* Alert banner */}
-      {directionAlertCount > 0 && (
-        <AlertBanner
-          count={directionAlertCount}
-          onViewAll={() => setModalAlerts(allDirectionAlerts)}
-        />
+      {/* Slim alert banner (only when active alerts exist) */}
+      {!alertsLoading && totalAlerts > 0 && (
+        <button
+          onClick={() => setShowAlertsSheet(true)}
+          className="w-full flex items-center gap-2 bg-amber-50 border-b border-amber-200 px-4 py-2 text-left"
+        >
+          <span className="text-sm">⚠️</span>
+          <span className="text-amber-800 text-xs font-medium flex-1">
+            {totalAlerts} active alert{totalAlerts !== 1 ? 's' : ''} on Stouffville line
+          </span>
+          <span className="text-amber-600 text-xs font-semibold">View →</span>
+        </button>
       )}
 
       {/* Train list */}
@@ -522,8 +613,7 @@ export default function Home() {
         ) : (
           <>
             {trips.map((trip, i) => {
-              const isPast =
-                isToday && nowMinutes !== null && parseTime(trip.departure) < nowMinutes;
+              const isPast = isToday && nowMinutes !== null && parseTime(trip.departure) < nowMinutes;
               const isNext = i === nextIndex;
               const tripAlerts = alertMap.get(trip.departure) ?? [];
               return (
@@ -533,7 +623,7 @@ export default function Home() {
                     isNext={isNext}
                     isPast={isPast}
                     alerts={tripAlerts}
-                    onAlertClick={setModalAlerts}
+                    onAlertClick={() => setShowAlertsSheet(true)}
                   />
                 </div>
               );
@@ -541,18 +631,7 @@ export default function Home() {
 
             <div className="text-center text-xs text-gray-400 mt-4 mb-8 pb-safe">
               Schedule effective {SCHEDULE_EFFECTIVE_DATE} · Stouffville Line
-              {alertsLastUpdated && (
-                <>
-                  <br />
-                  Alerts updated{' '}
-                  {new Date(alertsLastUpdated).toLocaleTimeString('en-CA', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}{' '}
-                  ·{' '}
-                </>
-              )}
-              {!alertsLastUpdated && <br />}
+              <br />
               <a
                 href="https://www.gotransit.com/en/see-schedules"
                 target="_blank"
@@ -566,9 +645,15 @@ export default function Home() {
         )}
       </main>
 
-      {/* Alert modal */}
-      {modalAlerts && (
-        <AlertModal alerts={modalAlerts} onClose={() => setModalAlerts(null)} />
+      {/* Service Alerts Sheet */}
+      {showAlertsSheet && (
+        <ServiceAlertsSheet
+          alerts={alerts}
+          loading={alertsLoading}
+          available={alertsAvailable}
+          lastUpdated={alertsLastUpdated}
+          onClose={() => setShowAlertsSheet(false)}
+        />
       )}
     </div>
   );
