@@ -30,13 +30,13 @@ function formatDisplayDate(dateStr: string): string {
 }
 
 function getDefaultDate(): string {
-  const now = new Date();
-  if (now.getHours() >= 18) {
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return toLocalDateStr(tomorrow);
-  }
-  return toLocalDateStr(now);
+  return toLocalDateStr(new Date());
+}
+
+function getTomorrowStr(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return toLocalDateStr(d);
 }
 
 function getDefaultDirection(): Direction {
@@ -691,6 +691,17 @@ export default function Home() {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
 
+  // Auto-scroll to next train whenever the visible schedule changes (on load, date/direction switch)
+  useEffect(() => {
+    if (!isToday || nextIndex < 0) return;
+    // Small delay lets the DOM paint the list before scrolling
+    const t = setTimeout(() => {
+      const el = document.getElementById('next-train');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [isToday, nextIndex, selectedDate, direction]);
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col max-w-md mx-auto">
       {/* ── Header ── */}
@@ -787,14 +798,15 @@ export default function Home() {
             className="flex-1 bg-white/10 text-white text-sm rounded-lg px-3 py-2 border border-white/20 focus:outline-none focus:border-white/50"
           />
           <span className="text-white/60 text-xs shrink-0">{formatDisplayDate(selectedDate)}</span>
-          {isToday && nextIndex >= 0 && (
-            <button
-              onClick={scrollToNext}
-              className="shrink-0 bg-go-green text-white text-xs font-semibold px-3 py-2 rounded-lg"
-            >
-              Next ↓
-            </button>
-          )}
+          <button
+            onClick={() => {
+              setSelectedDate(getTomorrowStr());
+              setDirection('homeToOffice');
+            }}
+            className="shrink-0 bg-white/10 text-white text-xs font-semibold px-3 py-2 rounded-lg border border-white/20 hover:bg-white/20 transition-colors"
+          >
+            Tomorrow →
+          </button>
         </div>
       </header>
 

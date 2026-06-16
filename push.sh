@@ -13,7 +13,7 @@ echo "Staging all files..."
 git add -A
 
 echo "Committing..."
-git commit -m "feat: bigger platform/expected badges + refresh button" || echo "(nothing new to commit)"
+git commit -m "feat: auto-scroll to next train, Tomorrow button, always show today" || echo "(nothing new to commit)"
 
 echo "Pushing to GitHub..."
 git push origin main
