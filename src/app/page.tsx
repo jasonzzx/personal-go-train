@@ -833,6 +833,134 @@ function TrainCard({
 }
 
 // ──────────────────────────────────────────────────────────
+// Add to Home Screen banner
+// ──────────────────────────────────────────────────────────
+
+function AddToHomeScreenBanner() {
+  const [visible, setVisible] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    // Already running as installed PWA — hide banner
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as { standalone?: boolean }).standalone === true;
+    if (isStandalone) return;
+
+    // User already dismissed this session
+    if (sessionStorage.getItem('a2hs-dismissed')) return;
+
+    const ua = navigator.userAgent;
+    // iOS Safari (not Chrome/Firefox on iOS)
+    const iosDevice = /iPhone|iPad|iPod/.test(ua) && !/CriOS|FxiOS/.test(ua) && /Safari/.test(ua);
+
+    if (iosDevice) {
+      setIsIOS(true);
+      setVisible(true);
+      return;
+    }
+
+    // Android / Desktop Chrome — capture beforeinstallprompt
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setVisible(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') dismiss();
+    setDeferredPrompt(null);
+  };
+
+  const dismiss = () => {
+    sessionStorage.setItem('a2hs-dismissed', '1');
+    setVisible(false);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <div className="mx-3 mt-3 mb-1 rounded-2xl overflow-hidden shadow-sm border border-blue-100"
+         style={{ background: 'linear-gradient(135deg, #1c3a5e 0%, #0b1c2e 100%)' }}>
+      <div className="flex items-start gap-3 px-4 py-3">
+        {/* App icon */}
+        <div className="shrink-0 w-12 h-12 rounded-xl overflow-hidden shadow-md"
+             style={{ background: 'linear-gradient(135deg, #1c3a5e 0%, #0b1c2e 100%)', border: '1.5px solid rgba(255,255,255,0.15)' }}>
+          <div className="w-full h-full flex items-center justify-center relative">
+            <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-emerald-400" />
+            <span className="text-base font-black text-sky-300 tracking-tighter">GO</span>
+          </div>
+        </div>
+
+        {/* Text */}
+        <div className="flex-1 min-w-0">
+          <div className="text-white font-semibold text-sm leading-snug">Add to Home Screen</div>
+          {isIOS ? (
+            <div className="text-white/60 text-xs mt-0.5 leading-relaxed">
+              Tap the{' '}
+              <span className="inline-flex items-center gap-0.5 text-white/80 font-medium">
+                <svg className="w-3 h-3 inline" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 2a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707A1 1 0 016.293 5.293l3-3A1 1 0 0110 2z"/>
+                  <path d="M3 15a2 2 0 002 2h10a2 2 0 002-2v-4a1 1 0 10-2 0v4H5v-4a1 1 0 10-2 0v4z"/>
+                </svg>
+                Share
+              </span>
+              {' '}then{' '}
+              <span className="text-white/80 font-medium">"Add to Home Screen"</span>
+            </div>
+          ) : (
+            <div className="text-white/60 text-xs mt-0.5">Get quick access from your home screen</div>
+          )}
+        </div>
+
+        {/* Action / dismiss */}
+        <div className="shrink-0 flex flex-col items-end gap-1.5">
+          {!isIOS && deferredPrompt && (
+            <button
+              onClick={handleInstall}
+              className="bg-sky-400 text-white text-xs font-bold px-3 py-1.5 rounded-lg active:opacity-80"
+            >
+              Install
+            </button>
+          )}
+          <button
+            onClick={dismiss}
+            className="text-white/40 hover:text-white/70 text-xs px-1"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      {/* iOS step hint strip */}
+      {isIOS && (
+        <div className="flex items-center justify-center gap-4 pb-3 px-4">
+          {[
+            { icon: '⬆️', label: 'Tap Share' },
+            { icon: '➕', label: 'Add to Home Screen' },
+            { icon: '✅', label: 'Done!' },
+          ].map((step, i) => (
+            <div key={i} className="flex flex-col items-center gap-0.5">
+              <span className="text-lg leading-none">{step.icon}</span>
+              <span className="text-[9px] text-white/50 text-center leading-tight">{step.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────
 // Weekend notice
 // ──────────────────────────────────────────────────────────
 
@@ -1151,6 +1279,9 @@ export default function Home() {
         </span>
         <span className="ml-auto text-white/70 capitalize text-xs">{serviceType}</span>
       </div>
+
+      {/* Add to Home Screen banner (only in mobile browser, not standalone) */}
+      <AddToHomeScreenBanner />
 
       {/* Slim alert banner (only when active alerts exist) */}
       {!alertsLoading && totalAlerts > 0 && (
