@@ -83,6 +83,55 @@ export const scheduleData: Record<Direction, Record<ServiceType, Trip[]>> = {
 
 export const SCHEDULE_EFFECTIVE_DATE = 'June 13, 2026';
 
+// ── Intermediate station stops ────────────────────────────
+export interface StationStop {
+  name: string;
+  code: string;
+  scheduledTime: string;    // "HH:MM" display
+  scheduledMinutes: number; // absolute minutes from midnight (may exceed 1440 for overnight)
+}
+
+const SOUTHBOUND_STOPS = [
+  { name: 'Unionville GO',  code: 'UI' },
+  { name: 'Agincourt GO',   code: 'AO' },
+  { name: 'Kennedy GO',     code: 'KE' },
+  { name: 'Scarborough GO', code: 'SC' },
+  { name: 'Danforth GO',    code: 'DN' },
+  { name: 'Union Station',  code: 'UN' },
+];
+
+const NORTHBOUND_STOPS = [
+  { name: 'Union Station',  code: 'UN' },
+  { name: 'Danforth GO',    code: 'DN' },
+  { name: 'Scarborough GO', code: 'SC' },
+  { name: 'Kennedy GO',     code: 'KE' },
+  { name: 'Agincourt GO',   code: 'AO' },
+  { name: 'Unionville GO',  code: 'UI' },
+];
+
+// Fractional offsets of total trip time at each stop (calibrated from Stouffville line)
+const SB_FRACTIONS = [0, 0.17, 0.29, 0.41, 0.56, 1.0];
+const NB_FRACTIONS = [0, 0.20, 0.35, 0.475, 0.625, 1.0];
+
+function minutesToTime(totalMinutes: number): string {
+  const wrapped = ((totalMinutes % 1440) + 1440) % 1440;
+  const h = Math.floor(wrapped / 60);
+  const m = wrapped % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/** Returns the 6 intermediate stops for a trip with estimated times. */
+export function getStops(trip: Trip, direction: Direction): StationStop[] {
+  const depMins = timeToMinutes(trip.departure);
+  const totalMins = parseInt(trip.tripTime, 10);
+  const fracs = direction === 'homeToOffice' ? SB_FRACTIONS : NB_FRACTIONS;
+  const bases = direction === 'homeToOffice' ? SOUTHBOUND_STOPS : NORTHBOUND_STOPS;
+  return bases.map((s, i) => {
+    const absMins = depMins + Math.round(fracs[i] * totalMins);
+    return { ...s, scheduledMinutes: absMins, scheduledTime: minutesToTime(absMins) };
+  });
+}
+
 export function getServiceType(date: Date): ServiceType {
   const day = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
   if (day === 0) return 'sunday';

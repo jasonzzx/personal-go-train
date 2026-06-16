@@ -4,10 +4,12 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   scheduleData,
   getServiceType,
+  getStops,
   timeToMinutes,
   SCHEDULE_EFFECTIVE_DATE,
   type Direction,
   type Trip,
+  type StationStop,
 } from '@/lib/schedule-data';
 import type { ParsedAlert } from '@/app/api/alerts/route';
 import type { TrackerTrip } from '@/app/api/tracker/route';
@@ -354,6 +356,100 @@ function ServiceAlertsSheet({
 }
 
 // ──────────────────────────────────────────────────────────
+// Station stop list (expandable inside TrainCard)
+// ──────────────────────────────────────────────────────────
+
+function StationList({
+  stops,
+  depMins,
+  nowMinutes,
+  onBoard,
+  isNext,
+}: {
+  stops: StationStop[];
+  depMins: number;
+  nowMinutes: number | null;
+  onBoard: boolean;
+  isNext: boolean;
+}) {
+  // For overnight trips (departure >22:00) normalize nowMinutes to absolute scale
+  const effectiveNow = useMemo(() => {
+    if (nowMinutes === null) return null;
+    return nowMinutes < 360 && depMins > 1200 ? nowMinutes + 1440 : nowMinutes;
+  }, [nowMinutes, depMins]);
+
+  return (
+    <div className="relative pl-2 pr-1">
+      {/* vertical track line */}
+      <div className={`absolute left-[18px] top-3 bottom-3 w-0.5 ${isNext ? 'bg-white/20' : 'bg-gray-100'}`} />
+
+      {stops.map((stop, i) => {
+        const isFirst = i === 0;
+        const isLast = i === stops.length - 1;
+        const nextMins = i < stops.length - 1 ? stops[i + 1].scheduledMinutes : null;
+
+        const isPassed = onBoard && effectiveNow !== null
+          && stop.scheduledMinutes < effectiveNow;
+        const isCurrent = onBoard && effectiveNow !== null
+          && stop.scheduledMinutes <= effectiveNow
+          && (nextMins === null || nextMins > effectiveNow);
+
+        return (
+          <div key={stop.code} className="flex items-center gap-3 py-1.5 relative z-10">
+            {/* dot */}
+            <div className={`w-5 h-5 rounded-full shrink-0 flex items-center justify-center border-2 transition-all ${
+              isCurrent
+                ? 'bg-go-accent border-go-accent shadow-sm'
+                : isPassed
+                ? isNext ? 'bg-white/40 border-white/40' : 'bg-go-green/40 border-go-green/40'
+                : isFirst || isLast
+                ? isNext ? 'bg-white border-white' : 'bg-go-dark border-go-dark'
+                : isNext ? 'bg-transparent border-white/40' : 'bg-white border-gray-300'
+            }`}>
+              {isPassed && !isCurrent && (
+                <svg className={`w-2.5 h-2.5 ${isNext ? 'text-go-dark' : 'text-white'}`} fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+                  <polyline points="2,6 5,9 10,3" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+              {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-white block" />}
+            </div>
+
+            {/* station name + time */}
+            <div className="flex-1 flex justify-between items-center min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className={`text-sm truncate ${
+                  isCurrent
+                    ? 'font-bold ' + (isNext ? 'text-go-accent' : 'text-go-accent')
+                    : isPassed
+                    ? isNext ? 'text-white/40' : 'text-gray-400'
+                    : isFirst || isLast
+                    ? isNext ? 'text-white font-semibold' : 'text-go-dark font-semibold'
+                    : isNext ? 'text-white/85' : 'text-gray-700'
+                }`}>
+                  {stop.name}
+                </span>
+                {isCurrent && (
+                  <span className="text-[10px] font-bold text-go-accent bg-go-accent/10 px-1.5 py-0.5 rounded-full shrink-0 animate-pulse">
+                    now
+                  </span>
+                )}
+              </div>
+              <span className={`text-xs font-mono ml-2 shrink-0 ${
+                isCurrent ? 'text-go-accent font-bold'
+                : isPassed ? isNext ? 'text-white/35' : 'text-gray-300'
+                : isNext ? 'text-white/70' : 'text-gray-500'
+              }`}>
+                {stop.scheduledTime}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────
 // Vehicle type icons (GO Transit style)
 // ──────────────────────────────────────────────────────────
 
@@ -526,6 +622,13 @@ function TrainCard({
   isPast,
   alerts,
   tracker,
+  direction,
+  nowMinutes,
+  isToday,
+  isExpanded,
+  isOnBoard,
+  onToggleExpand,
+  onToggleOnBoard,
   onAlertClick,
 }: {
   trip: Trip;
@@ -533,13 +636,27 @@ function TrainCard({
   isPast: boolean;
   alerts: ParsedAlert[];
   tracker: TrackerInfo | null;
+  direction: Direction;
+  nowMinutes: number | null;
+  isToday: boolean;
+  isExpanded: boolean;
+  isOnBoard: boolean;
+  onToggleExpand: () => void;
+  onToggleOnBoard: () => void;
   onAlertClick: () => void;
 }) {
   const hasAlert = alerts.length > 0;
+  const depMins = timeToMinutes(trip.departure);
+  const arrMins = depMins + parseInt(trip.tripTime, 10);
+  // Show "On Board" only when trip is today and currently in progress
+  const canOnBoard = isToday && nowMinutes !== null
+    && nowMinutes >= depMins - 5 && nowMinutes <= arrMins + 5;
+
+  const stops = useMemo(() => getStops(trip, direction), [trip, direction]);
 
   return (
     <div className={`
-      relative rounded-xl px-3 pt-3 pb-3 mb-2 transition-all
+      relative rounded-xl px-3 pt-3 mb-2 transition-all overflow-hidden
       ${isNext
         ? 'bg-go-green shadow-md shadow-go-green/30 text-white'
         : isPast
@@ -552,9 +669,11 @@ function TrainCard({
         </span>
       )}
 
-      {/* Times row */}
-      <div className="flex items-center gap-2">
-
+      {/* ── Clickable header row ── */}
+      <button
+        onClick={onToggleExpand}
+        className="w-full flex items-center gap-2 pb-3 text-left active:opacity-80"
+      >
         {/* Vehicle badge */}
         <VehicleBadge type={trip.vehicleType} isNext={isNext} isPast={isPast} />
 
@@ -590,24 +709,64 @@ function TrainCard({
 
         {/* Alert badge */}
         {hasAlert && (
-          <button
+          <div
             onClick={(e) => { e.stopPropagation(); onAlertClick(); }}
+            role="button"
             className={`
               ml-1 shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm
-              transition-transform active:scale-95
-              ${isNext ? 'bg-white/20 hover:bg-white/30' : 'bg-amber-100 hover:bg-amber-200'}
+              ${isNext ? 'bg-white/20' : 'bg-amber-100'}
             `}
-            title="Service alert – tap for details"
           >
             ⚠️
-          </button>
+          </div>
         )}
-      </div>
+
+        {/* Chevron */}
+        <svg
+          className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''} ${isNext ? 'text-white/60' : 'text-gray-400'}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
 
       {/* Tracker row: platform + expected */}
       {tracker && (
-        <TrackerRow tracker={tracker} isPast={isPast} isNext={isNext} />
+        <div className="pb-3">
+          <TrackerRow tracker={tracker} isPast={isPast} isNext={isNext} />
+        </div>
       )}
+
+      {/* ── Expandable station list ── */}
+      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[500px] pb-3' : 'max-h-0'}`}>
+        <div className={`border-t pt-3 ${isNext ? 'border-white/20' : 'border-gray-100'}`}>
+          <StationList
+            stops={stops}
+            depMins={depMins}
+            nowMinutes={nowMinutes}
+            onBoard={isOnBoard}
+            isNext={isNext}
+          />
+
+          {/* On Board button */}
+          {canOnBoard && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleOnBoard(); }}
+              className={`mt-3 w-full py-2 rounded-lg text-sm font-semibold transition-all active:scale-98 ${
+                isOnBoard
+                  ? isNext
+                    ? 'bg-white/20 text-white'
+                    : 'bg-go-green/10 text-go-green border border-go-green/20'
+                  : isNext
+                    ? 'bg-white text-go-dark'
+                    : 'bg-go-green text-white shadow-sm'
+              }`}
+            >
+              {isOnBoard ? '✕ Exit On Board' : '🚆 On Board'}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -670,6 +829,8 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [refreshCountdown, setRefreshCountdown] = useState(30);
+  const [expandedDep, setExpandedDep] = useState<string | null>(null);
+  const [onBoardDep, setOnBoardDep] = useState<string | null>(null);
 
   // Clock tick
   useEffect(() => {
@@ -790,6 +951,12 @@ export default function Home() {
     }, 150);
     return () => clearTimeout(t);
   }, [scrollTargetIndex, selectedDate, direction]);
+
+  // Collapse expanded cards when switching date or direction
+  useEffect(() => {
+    setExpandedDep(null);
+    setOnBoardDep(null);
+  }, [selectedDate, direction]);
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col max-w-md mx-auto">
@@ -949,6 +1116,8 @@ export default function Home() {
               const isNext = i === nextIndex;
               const tripAlerts = alertMap.get(trip.departure) ?? [];
               const tracker = isToday ? getTrackerInfo(trip, direction, trackerInbound, trackerOutbound) : null;
+              const isExpanded = expandedDep === trip.departure;
+              const isOnBoard = onBoardDep === trip.departure;
               return (
                 <div key={i} id={i === scrollTargetIndex ? 'scroll-target' : undefined}>
                   <TrainCard
@@ -957,6 +1126,13 @@ export default function Home() {
                     isPast={isPast}
                     alerts={tripAlerts}
                     tracker={tracker}
+                    direction={direction}
+                    nowMinutes={nowMinutes}
+                    isToday={isToday}
+                    isExpanded={isExpanded}
+                    isOnBoard={isOnBoard}
+                    onToggleExpand={() => setExpandedDep(isExpanded ? null : trip.departure)}
+                    onToggleOnBoard={() => setOnBoardDep(isOnBoard ? null : trip.departure)}
                     onAlertClick={() => setShowAlertsSheet(true)}
                   />
                 </div>
