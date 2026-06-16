@@ -686,21 +686,22 @@ export default function Home() {
 
   const totalAlerts = alerts.length;
 
-  const scrollToNext = useCallback(() => {
-    const el = document.getElementById('next-train');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, []);
+  // For today: scroll to next train. For other dates: scroll to first train at/after 8am.
+  const scrollTargetIndex = useMemo(() => {
+    if (isToday) return nextIndex;
+    const idx = trips.findIndex((t) => parseTime(t.departure) >= 480); // 8:00
+    return idx >= 0 ? idx : 0;
+  }, [isToday, nextIndex, trips]);
 
-  // Auto-scroll to next train whenever the visible schedule changes (on load, date/direction switch)
+  // Auto-scroll whenever the visible schedule changes
   useEffect(() => {
-    if (!isToday || nextIndex < 0) return;
-    // Small delay lets the DOM paint the list before scrolling
+    if (scrollTargetIndex < 0) return;
     const t = setTimeout(() => {
-      const el = document.getElementById('next-train');
+      const el = document.getElementById('scroll-target');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 150);
     return () => clearTimeout(t);
-  }, [isToday, nextIndex, selectedDate, direction]);
+  }, [scrollTargetIndex, selectedDate, direction]);
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col max-w-md mx-auto">
@@ -800,6 +801,7 @@ export default function Home() {
           <span className="text-white/60 text-xs shrink-0">{formatDisplayDate(selectedDate)}</span>
           {isToday ? (
             <button
+              key="tomorrow-btn"
               onClick={() => {
                 setSelectedDate(getTomorrowStr());
                 setDirection('homeToOffice');
@@ -810,6 +812,7 @@ export default function Home() {
             </button>
           ) : (
             <button
+              key="today-btn"
               onClick={() => {
                 setSelectedDate(todayStr);
               }}
@@ -859,7 +862,7 @@ export default function Home() {
               const tripAlerts = alertMap.get(trip.departure) ?? [];
               const tracker = isToday ? getTrackerInfo(trip, direction, trackerInbound, trackerOutbound) : null;
               return (
-                <div key={i} id={isNext ? 'next-train' : undefined}>
+                <div key={i} id={i === scrollTargetIndex ? 'scroll-target' : undefined}>
                   <TrainCard
                     trip={trip}
                     isNext={isNext}
