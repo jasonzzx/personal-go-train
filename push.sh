@@ -13,7 +13,7 @@ echo "Staging all files..."
 git add -A
 
 echo "Committing..."
-git commit -m "fix: Now badge and On Board button for in-progress trains" || echo "(nothing new to commit)"
+git commit -m "feat: new navy/chrome GO icon with mint dot, all sizes generated" || echo "(nothing new to commit)"
 
 echo "Pushing to GitHub..."
 git push origin main

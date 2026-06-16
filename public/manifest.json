@@ -4,19 +4,20 @@
   "description": "Live GO Train status: Unionville GO ↔ Union Station",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#003B27",
-  "theme_color": "#00853F",
+  "background_color": "#0b1c2e",
+  "theme_color": "#1c3a5e",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/apple-icon.png",
+      "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/apple-icon.png",
+      "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

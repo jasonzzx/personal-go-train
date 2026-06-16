@@ -10,50 +10,51 @@ export default function Icon() {
         style={{
           width: '100%',
           height: '100%',
-          background: '#003B27',
           borderRadius: '7px',
+          background: 'linear-gradient(135deg, #1c3a5e 0%, #0b1c2e 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          position: 'relative',
         }}
       >
-        {/* sign board */}
+        {/* Frosted glass overlay */}
         <div
           style={{
-            background: '#00853F',
-            width: '86%',
-            height: '70%',
-            borderRadius: '3px',
+            position: 'absolute',
+            inset: 0,
+            borderRadius: '7px',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.03) 100%)',
+            border: '1px solid rgba(255,255,255,0.14)',
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingTop: '2px',
+          }}
+        />
+        {/* Mint dot top-right */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '4px',
+            right: '4px',
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            background: '#34D399',
+            display: 'flex',
+          }}
+        />
+        {/* GO text */}
+        <span
+          style={{
+            fontSize: '15px',
+            fontWeight: 900,
+            color: '#7fe7ff',
+            letterSpacing: '-1px',
+            lineHeight: 1,
+            position: 'relative',
           }}
         >
-          <span
-            style={{
-              fontSize: '13px',
-              fontWeight: 900,
-              color: 'white',
-              lineHeight: 1,
-              letterSpacing: '-0.5px',
-            }}
-          >
-            GO
-          </span>
-          <span
-            style={{
-              fontSize: '4px',
-              fontWeight: 700,
-              color: 'rgba(255,255,255,0.8)',
-              letterSpacing: '1.5px',
-              marginTop: '1px',
-            }}
-          >
-            STATUS
-          </span>
-        </div>
+          GO
+        </span>
       </div>
     ),
     { ...size },

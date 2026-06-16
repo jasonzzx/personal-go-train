@@ -10,66 +10,52 @@ export default function AppleIcon() {
         style={{
           width: '100%',
           height: '100%',
-          background: '#003B27',
           borderRadius: '40px',
+          background: 'linear-gradient(135deg, #1c3a5e 0%, #0b1c2e 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          position: 'relative',
         }}
       >
-        {/* sign board */}
+        {/* Frosted glass overlay */}
         <div
           style={{
-            background: '#00853F',
-            width: '148px',
-            height: '108px',
-            borderRadius: '14px',
+            position: 'absolute',
+            inset: 0,
+            borderRadius: '40px',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.03) 100%)',
+            border: '2px solid rgba(255,255,255,0.14)',
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
+          }}
+        />
+        {/* Mint dot top-right */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '22px',
+            right: '22px',
+            width: '20px',
+            height: '20px',
+            borderRadius: '50%',
+            background: '#34D399',
+            display: 'flex',
+          }}
+        />
+        {/* GO text */}
+        <span
+          style={{
+            fontSize: '90px',
+            fontWeight: 900,
+            color: '#7fe7ff',
+            letterSpacing: '-5px',
+            lineHeight: 1,
             position: 'relative',
+            textShadow: '0 4px 12px rgba(0,0,0,0.5)',
           }}
         >
-          {/* top darker stripe */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '18px',
-              background: '#005C2B',
-              borderRadius: '14px 14px 0 0',
-              display: 'flex',
-            }}
-          />
-          {/* GO text */}
-          <span
-            style={{
-              fontSize: '58px',
-              fontWeight: 900,
-              color: 'white',
-              lineHeight: 1,
-              letterSpacing: '-2px',
-              marginTop: '8px',
-            }}
-          >
-            GO
-          </span>
-          {/* STATUS text */}
-          <span
-            style={{
-              fontSize: '14px',
-              fontWeight: 700,
-              color: 'rgba(255,255,255,0.82)',
-              letterSpacing: '5px',
-              marginTop: '2px',
-            }}
-          >
-            STATUS
-          </span>
-        </div>
+          GO
+        </span>
       </div>
     ),
     { ...size },
