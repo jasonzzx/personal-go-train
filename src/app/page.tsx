@@ -357,51 +357,97 @@ function ServiceAlertsSheet({
 // Train card
 // ──────────────────────────────────────────────────────────
 
-function ExpectedBadge({
-  expected,
-  delay,
-  cancelled,
+function TrackerRow({
+  tracker,
+  isPast,
   isNext,
 }: {
-  expected: string;
-  delay: number;
-  cancelled: boolean;
+  tracker: TrackerInfo;
+  isPast: boolean;
   isNext: boolean;
 }) {
-  if (cancelled) {
-    return (
-      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
-        isNext ? 'bg-red-500/30 text-red-100' : 'bg-red-100 text-red-600'
-      }`}>
-        Cancelled
-      </span>
-    );
-  }
-  if (delay > 0) {
-    return (
-      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
-        isNext ? 'bg-amber-400/30 text-amber-100' : 'bg-amber-100 text-amber-700'
-      }`}>
-        +{delay} min
-      </span>
-    );
-  }
-  if (expected === 'On Time') {
-    return (
-      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
-        isNext ? 'bg-white/20 text-white/90' : 'bg-green-50 text-green-700'
-      }`}>
-        On Time
-      </span>
-    );
-  }
-  // Any other expected text
-  return (
-    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
-      isNext ? 'bg-white/20 text-white/80' : 'bg-gray-100 text-gray-600'
+  // Platform badge — always yellow
+  const platformBadge = tracker.platform ? (
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl ${
+      isNext ? 'bg-yellow-400/25' : isPast ? 'bg-yellow-100/60' : 'bg-yellow-400'
     }`}>
-      {expected}
-    </span>
+      <div className="flex flex-col items-center leading-none">
+        <span className={`text-[10px] font-semibold uppercase tracking-wider ${
+          isNext ? 'text-yellow-200' : isPast ? 'text-yellow-600/60' : 'text-yellow-900'
+        }`}>
+          Platform
+        </span>
+        <span className={`text-2xl font-extrabold leading-none mt-0.5 ${
+          isNext ? 'text-yellow-300' : isPast ? 'text-yellow-700/50' : 'text-yellow-900'
+        }`}>
+          {tracker.platform}
+        </span>
+      </div>
+    </div>
+  ) : null;
+
+  // Expected badge — same height/padding as platform badge
+  const expectedBadge = !isPast && tracker.expected ? (() => {
+    if (tracker.cancelled) {
+      return (
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${
+          isNext ? 'bg-red-500/25' : 'bg-red-100'
+        }`}>
+          <span className="text-base leading-none">✕</span>
+          <div className="flex flex-col leading-none">
+            <span className={`text-[10px] font-semibold uppercase tracking-wider ${
+              isNext ? 'text-red-200' : 'text-red-500'
+            }`}>Status</span>
+            <span className={`text-base font-extrabold leading-none mt-0.5 ${
+              isNext ? 'text-red-200' : 'text-red-600'
+            }`}>Cancelled</span>
+          </div>
+        </div>
+      );
+    }
+    if (tracker.delay > 0) {
+      return (
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${
+          isNext ? 'bg-orange-400/25' : 'bg-orange-100'
+        }`}>
+          <span className="text-base leading-none">⚠</span>
+          <div className="flex flex-col leading-none">
+            <span className={`text-[10px] font-semibold uppercase tracking-wider ${
+              isNext ? 'text-orange-200' : 'text-orange-600'
+            }`}>Delayed</span>
+            <span className={`text-base font-extrabold leading-none mt-0.5 ${
+              isNext ? 'text-orange-200' : 'text-orange-700'
+            }`}>+{tracker.delay} min</span>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${
+        isNext ? 'bg-white/20' : 'bg-green-100'
+      }`}>
+        <span className="text-base leading-none">✓</span>
+        <div className="flex flex-col leading-none">
+          <span className={`text-[10px] font-semibold uppercase tracking-wider ${
+            isNext ? 'text-white/70' : 'text-green-600'
+          }`}>Expected</span>
+          <span className={`text-base font-extrabold leading-none mt-0.5 ${
+            isNext ? 'text-white/90' : 'text-green-700'
+          }`}>On Time</span>
+        </div>
+      </div>
+    );
+  })() : null;
+
+  if (!platformBadge && !expectedBadge) return null;
+
+  return (
+    <div className={`flex items-center gap-2 mt-2 pt-2 ${
+      isNext ? 'border-t border-white/20' : 'border-t border-gray-100'
+    }`}>
+      {platformBadge}
+      {expectedBadge}
+    </div>
   );
 }
 
@@ -424,8 +470,7 @@ function TrainCard({
 
   return (
     <div className={`
-      relative flex items-center rounded-xl px-4 mb-2 transition-all
-      ${tracker ? 'pt-3 pb-2.5' : 'py-3'}
+      relative rounded-xl px-4 pt-3 pb-3 mb-2 transition-all
       ${isNext
         ? 'bg-go-green shadow-md shadow-go-green/30 text-white'
         : isPast
@@ -438,70 +483,54 @@ function TrainCard({
         </span>
       )}
 
-      {/* Departure */}
-      <div className="flex-1">
-        <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : 'text-go-dark'}`}>
-          {trip.departure}
-        </div>
-        <div className={`text-xs mt-0.5 ${isNext ? 'text-white/75' : 'text-gray-500'}`}>depart</div>
-      </div>
-
-      {/* Center: trip time + arrow + tracker badges */}
-      <div className="flex flex-col items-center px-3 gap-1">
-        <div className={`text-xs font-medium ${isNext ? 'text-white/80' : 'text-gray-400'}`}>
-          {trip.tripTime}
-        </div>
-        <div className="flex items-center gap-1">
-          <div className={`h-px w-6 ${isNext ? 'bg-white/50' : 'bg-gray-200'}`} />
-          <ArrowRightIcon className={`w-3 h-3 ${isNext ? 'text-white/70' : 'text-gray-300'}`} />
-        </div>
-        {/* Platform + Expected — only when tracker data available */}
-        {tracker && (
-          <div className="flex items-center gap-1 flex-wrap justify-center">
-            {tracker.platform && (
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md font-mono ${
-                isNext
-                  ? 'bg-white/25 text-white'
-                  : isPast
-                  ? 'bg-gray-100 text-gray-400'
-                  : 'bg-go-dark/10 text-go-dark'
-              }`}>
-                Plt {tracker.platform}
-              </span>
-            )}
-            {tracker.expected && !isPast && (
-              <ExpectedBadge
-                expected={tracker.expected}
-                delay={tracker.delay}
-                cancelled={tracker.cancelled}
-                isNext={isNext}
-              />
-            )}
+      {/* Times row */}
+      <div className="flex items-center">
+        {/* Departure */}
+        <div className="flex-1">
+          <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : 'text-go-dark'}`}>
+            {trip.departure}
           </div>
+          <div className={`text-xs mt-0.5 ${isNext ? 'text-white/75' : 'text-gray-500'}`}>depart</div>
+        </div>
+
+        {/* Center arrow */}
+        <div className="flex flex-col items-center px-3 gap-1">
+          <div className={`text-xs font-medium ${isNext ? 'text-white/80' : 'text-gray-400'}`}>
+            {trip.tripTime}
+          </div>
+          <div className="flex items-center gap-1">
+            <div className={`h-px w-8 ${isNext ? 'bg-white/50' : 'bg-gray-200'}`} />
+            <ArrowRightIcon className={`w-3 h-3 ${isNext ? 'text-white/70' : 'text-gray-300'}`} />
+          </div>
+        </div>
+
+        {/* Arrival */}
+        <div className="flex-1 text-right">
+          <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : 'text-go-dark'}`}>
+            {trip.arrival}
+          </div>
+          <div className={`text-xs mt-0.5 ${isNext ? 'text-white/75' : 'text-gray-500'}`}>arrive</div>
+        </div>
+
+        {/* Alert badge */}
+        {hasAlert && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAlertClick(); }}
+            className={`
+              ml-2 shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm
+              transition-transform active:scale-95
+              ${isNext ? 'bg-white/20 hover:bg-white/30' : 'bg-amber-100 hover:bg-amber-200'}
+            `}
+            title="Service alert – tap for details"
+          >
+            ⚠️
+          </button>
         )}
       </div>
 
-      {/* Arrival */}
-      <div className="flex-1 text-right">
-        <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : 'text-go-dark'}`}>
-          {trip.arrival}
-        </div>
-        <div className={`text-xs mt-0.5 ${isNext ? 'text-white/75' : 'text-gray-500'}`}>arrive</div>
-      </div>
-
-      {/* Alert badge */}
-      {hasAlert && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onAlertClick(); }}
-          className={`
-            ml-2 shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm
-            transition-transform active:scale-95
-            ${isNext ? 'bg-white/20 hover:bg-white/30' : 'bg-amber-100 hover:bg-amber-200'}
-          `}
-          title="Service alert – tap for details"
-        >
-          ⚠️
-        </button>
+      {/* Tracker row: platform + expected */}
+      {tracker && (
+        <TrackerRow tracker={tracker} isPast={isPast} isNext={isNext} />
       )}
     </div>
   );
@@ -562,6 +591,7 @@ export default function Home() {
   const [alertsAvailable, setAlertsAvailable] = useState(false);
   const [alertsLastUpdated, setAlertsLastUpdated] = useState<string | null>(null);
   const [showAlertsSheet, setShowAlertsSheet] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Clock tick
   useEffect(() => {
@@ -614,6 +644,17 @@ export default function Home() {
     const id = setInterval(fetchAlerts, 5 * 60_000);
     return () => clearInterval(id);
   }, [fetchAlerts]);
+
+  // Manual refresh — both tracker + alerts simultaneously
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await Promise.all([fetchTracker(), fetchAlerts()]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing, fetchTracker, fetchAlerts]);
 
   const serviceType = useMemo(() => {
     const [y, m, d] = selectedDate.split('-').map(Number);
@@ -676,6 +717,26 @@ export default function Home() {
               {!alertsLoading && totalAlerts > 0 && (
                 <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-go-dark" />
               )}
+            </button>
+
+            <div className="w-px h-4 bg-white/20" />
+
+            {/* Refresh button */}
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+              title="Refresh live data"
+            >
+              <svg
+                className={`w-5 h-5 text-white/70 ${isRefreshing ? 'animate-spin' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
             </button>
 
             <div className="w-px h-4 bg-white/20" />
