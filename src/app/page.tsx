@@ -592,6 +592,8 @@ export default function Home() {
   const [alertsLastUpdated, setAlertsLastUpdated] = useState<string | null>(null);
   const [showAlertsSheet, setShowAlertsSheet] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [refreshCountdown, setRefreshCountdown] = useState(30);
 
   // Clock tick
   useEffect(() => {
@@ -612,6 +614,8 @@ export default function Home() {
       if (!res.ok) return;
       const data = await res.json();
       setTrackerTrips(data.trips ?? []);
+      setLastRefreshed(new Date());
+      setRefreshCountdown(30);
     } catch {
       // non-critical
     }
@@ -644,6 +648,14 @@ export default function Home() {
     const id = setInterval(fetchAlerts, 5 * 60_000);
     return () => clearInterval(id);
   }, [fetchAlerts]);
+
+  // Countdown tick — decrements every second toward next auto-refresh
+  useEffect(() => {
+    const id = setInterval(() => {
+      setRefreshCountdown((prev) => (prev <= 1 ? 30 : prev - 1));
+    }, 1_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Manual refresh — both tracker + alerts simultaneously
   const handleRefresh = useCallback(async () => {
@@ -875,7 +887,39 @@ export default function Home() {
               );
             })}
 
-            <div className="text-center text-xs text-gray-400 mt-4 mb-8 pb-safe">
+            {/* Live data status footer */}
+            <div className="mt-4 mb-2 mx-1 rounded-xl bg-white border border-gray-100 shadow-sm px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {isRefreshing ? (
+                    <svg className="w-3.5 h-3.5 text-go-green animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-go-green inline-block" />
+                  )}
+                  <span className="text-xs font-medium text-gray-700">
+                    {isRefreshing ? 'Refreshing…' : 'Live data'}
+                  </span>
+                </div>
+                <span className="text-xs text-gray-400">
+                  {!isRefreshing && `Next refresh in ${refreshCountdown}s`}
+                </span>
+              </div>
+              {lastRefreshed && (
+                <p className="text-[11px] text-gray-400 mt-1.5">
+                  Last updated:{' '}
+                  {lastRefreshed.toLocaleTimeString('en-CA', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true,
+                  })}
+                </p>
+              )}
+            </div>
+
+            <div className="text-center text-xs text-gray-400 mt-3 mb-8 pb-safe">
               Schedule effective {SCHEDULE_EFFECTIVE_DATE} · Stouffville Line
               <br />
               <a

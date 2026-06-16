@@ -13,7 +13,7 @@ echo "Staging all files..."
 git add -A
 
 echo "Committing..."
-git commit -m "feat: rename to Go Train Status, new station sign icon" || echo "(nothing new to commit)"
+git commit -m "feat: auto-refresh every 30s, last updated footer with countdown" || echo "(nothing new to commit)"
 
 echo "Pushing to GitHub..."
 git push origin main
