@@ -713,7 +713,7 @@ export default function Home() {
             GO
           </div>
           <div>
-            <div className="font-bold text-base leading-tight">GO Train</div>
+            <div className="font-bold text-base leading-tight">Go Train Status</div>
             <div className="text-white/60 text-xs">Stouffville Line</div>
           </div>
 

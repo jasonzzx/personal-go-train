@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'GO Train – Unionville ↔ Union',
-  description: 'Personal GO Train schedule: Unionville GO ↔ Union Station',
+  title: 'Go Train Status',
+  description: 'Live GO Train status: Unionville GO ↔ Union Station',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'GO Train',
+    title: 'Go Train Status',
   },
 };
 
@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" href="/apple-icon.png" />
       </head>
       <body>{children}</body>
     </html>
