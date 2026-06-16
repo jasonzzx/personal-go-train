@@ -354,6 +354,75 @@ function ServiceAlertsSheet({
 }
 
 // ──────────────────────────────────────────────────────────
+// Vehicle type icons (GO Transit style)
+// ──────────────────────────────────────────────────────────
+
+function TrainIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 28 24" fill="currentColor" className={className} aria-hidden="true">
+      {/* body -->*/}
+      <rect x="2" y="4" width="24" height="14" rx="3" />
+      {/* cab window -->*/}
+      <rect x="17" y="6.5" width="6" height="5" rx="1" fill="white" opacity="0.9" />
+      {/* side windows -->*/}
+      <rect x="4" y="6.5" width="4" height="5" rx="1" fill="white" opacity="0.9" />
+      <rect x="10" y="6.5" width="4" height="5" rx="1" fill="white" opacity="0.9" />
+      {/* stripe -->*/}
+      <rect x="2" y="13" width="24" height="2" fill="white" opacity="0.25" />
+      {/* wheels -->*/}
+      <circle cx="8" cy="20" r="2.5" />
+      <circle cx="20" cy="20" r="2.5" />
+      {/* rail -->*/}
+      <rect x="0" y="22" width="28" height="1.5" rx="0.75" opacity="0.4" />
+    </svg>
+  );
+}
+
+function BusIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 28 24" fill="currentColor" className={className} aria-hidden="true">
+      {/* body -->*/}
+      <rect x="2" y="2" width="24" height="17" rx="3" />
+      {/* windshield -->*/}
+      <rect x="4" y="4" width="20" height="6" rx="1.5" fill="white" opacity="0.9" />
+      {/* side windows -->*/}
+      <rect x="4" y="12" width="5" height="4" rx="1" fill="white" opacity="0.9" />
+      <rect x="11.5" y="12" width="5" height="4" rx="1" fill="white" opacity="0.9" />
+      <rect x="19" y="12" width="5" height="4" rx="1" fill="white" opacity="0.9" />
+      {/* wheels -->*/}
+      <circle cx="8" cy="21" r="2.5" />
+      <circle cx="20" cy="21" r="2.5" />
+      {/* undercarriage -->*/}
+      <rect x="2" y="18" width="24" height="1.5" opacity="0.3" />
+    </svg>
+  );
+}
+
+function VehicleBadge({
+  type,
+  isNext,
+  isPast,
+}: {
+  type: 'train' | 'bus';
+  isNext: boolean;
+  isPast: boolean;
+}) {
+  const iconCls = `w-7 h-6 ${
+    isNext ? 'text-white' : isPast ? 'text-gray-300' : type === 'train' ? 'text-go-dark' : 'text-amber-600'
+  }`;
+  const textCls = `text-[9px] font-bold uppercase tracking-wider mt-0.5 ${
+    isNext ? 'text-white/75' : isPast ? 'text-gray-300' : type === 'train' ? 'text-go-dark/70' : 'text-amber-600/80'
+  }`;
+
+  return (
+    <div className="flex flex-col items-center justify-center w-10 shrink-0">
+      {type === 'train' ? <TrainIcon className={iconCls} /> : <BusIcon className={iconCls} />}
+      <span className={textCls}>{type === 'train' ? 'Train' : 'Bus'}</span>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────
 // Train card
 // ──────────────────────────────────────────────────────────
 
@@ -470,7 +539,7 @@ function TrainCard({
 
   return (
     <div className={`
-      relative rounded-xl px-4 pt-3 pb-3 mb-2 transition-all
+      relative rounded-xl px-3 pt-3 pb-3 mb-2 transition-all
       ${isNext
         ? 'bg-go-green shadow-md shadow-go-green/30 text-white'
         : isPast
@@ -484,7 +553,14 @@ function TrainCard({
       )}
 
       {/* Times row */}
-      <div className="flex items-center">
+      <div className="flex items-center gap-2">
+
+        {/* Vehicle badge */}
+        <VehicleBadge type={trip.vehicleType} isNext={isNext} isPast={isPast} />
+
+        {/* Thin divider */}
+        <div className={`w-px self-stretch ${isNext ? 'bg-white/20' : 'bg-gray-100'}`} />
+
         {/* Departure */}
         <div className="flex-1">
           <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : 'text-go-dark'}`}>
@@ -494,12 +570,12 @@ function TrainCard({
         </div>
 
         {/* Center arrow */}
-        <div className="flex flex-col items-center px-3 gap-1">
+        <div className="flex flex-col items-center px-1 gap-1">
           <div className={`text-xs font-medium ${isNext ? 'text-white/80' : 'text-gray-400'}`}>
             {trip.tripTime}
           </div>
           <div className="flex items-center gap-1">
-            <div className={`h-px w-8 ${isNext ? 'bg-white/50' : 'bg-gray-200'}`} />
+            <div className={`h-px w-6 ${isNext ? 'bg-white/50' : 'bg-gray-200'}`} />
             <ArrowRightIcon className={`w-3 h-3 ${isNext ? 'text-white/70' : 'text-gray-300'}`} />
           </div>
         </div>
@@ -517,7 +593,7 @@ function TrainCard({
           <button
             onClick={(e) => { e.stopPropagation(); onAlertClick(); }}
             className={`
-              ml-2 shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm
+              ml-1 shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm
               transition-transform active:scale-95
               ${isNext ? 'bg-white/20 hover:bg-white/30' : 'bg-amber-100 hover:bg-amber-200'}
             `}
