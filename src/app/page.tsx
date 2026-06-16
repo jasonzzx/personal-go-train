@@ -10,6 +10,7 @@ import {
   type Trip,
 } from '@/lib/schedule-data';
 import type { ParsedAlert } from '@/app/api/alerts/route';
+import type { TrackerTrip } from '@/app/api/tracker/route';
 
 // ──────────────────────────────────────────────────────────
 // Helpers
@@ -63,6 +64,56 @@ function buildAlertMap(alerts: ParsedAlert[], direction: Direction): Map<string,
     map.get(key)!.push(alert);
   }
   return map;
+}
+
+// ──────────────────────────────────────────────────────────
+// Tracker lookup helpers
+// ──────────────────────────────────────────────────────────
+
+interface TrackerInfo {
+  platform: string;
+  expected: string;
+  delay: number;
+  cancelled: boolean;
+  arriveIn: string;
+}
+
+/**
+ * Build lookup maps from tracker trips:
+ *  inbound  (Inbound/SB)  key = ScheduledTime = departure from Unionville → match trip.departure
+ *  outbound (Outbound/NB) key = ScheduledTime = arrival  at  Unionville → match trip.arrival
+ */
+function buildTrackerMaps(trips: TrackerTrip[]): {
+  inbound: Map<string, TrackerInfo>;
+  outbound: Map<string, TrackerInfo>;
+} {
+  const inbound = new Map<string, TrackerInfo>();
+  const outbound = new Map<string, TrackerInfo>();
+  for (const t of trips) {
+    const info: TrackerInfo = {
+      platform: t.platform,
+      expected: t.expected,
+      delay: t.delay,
+      cancelled: t.cancelled,
+      arriveIn: t.arriveIn,
+    };
+    if (t.directionCd === 'Inbound') {
+      inbound.set(t.scheduledTime, info);
+    } else {
+      outbound.set(t.scheduledTime, info);
+    }
+  }
+  return { inbound, outbound };
+}
+
+function getTrackerInfo(
+  trip: { departure: string; arrival: string },
+  direction: Direction,
+  inbound: Map<string, TrackerInfo>,
+  outbound: Map<string, TrackerInfo>
+): TrackerInfo | null {
+  if (direction === 'homeToOffice') return inbound.get(trip.departure) ?? null;
+  return outbound.get(trip.arrival) ?? null;
 }
 
 // ──────────────────────────────────────────────────────────
@@ -306,24 +357,75 @@ function ServiceAlertsSheet({
 // Train card
 // ──────────────────────────────────────────────────────────
 
+function ExpectedBadge({
+  expected,
+  delay,
+  cancelled,
+  isNext,
+}: {
+  expected: string;
+  delay: number;
+  cancelled: boolean;
+  isNext: boolean;
+}) {
+  if (cancelled) {
+    return (
+      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
+        isNext ? 'bg-red-500/30 text-red-100' : 'bg-red-100 text-red-600'
+      }`}>
+        Cancelled
+      </span>
+    );
+  }
+  if (delay > 0) {
+    return (
+      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
+        isNext ? 'bg-amber-400/30 text-amber-100' : 'bg-amber-100 text-amber-700'
+      }`}>
+        +{delay} min
+      </span>
+    );
+  }
+  if (expected === 'On Time') {
+    return (
+      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
+        isNext ? 'bg-white/20 text-white/90' : 'bg-green-50 text-green-700'
+      }`}>
+        On Time
+      </span>
+    );
+  }
+  // Any other expected text
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
+      isNext ? 'bg-white/20 text-white/80' : 'bg-gray-100 text-gray-600'
+    }`}>
+      {expected}
+    </span>
+  );
+}
+
 function TrainCard({
   trip,
   isNext,
   isPast,
   alerts,
+  tracker,
   onAlertClick,
 }: {
   trip: Trip;
   isNext: boolean;
   isPast: boolean;
   alerts: ParsedAlert[];
+  tracker: TrackerInfo | null;
   onAlertClick: () => void;
 }) {
   const hasAlert = alerts.length > 0;
 
   return (
     <div className={`
-      relative flex items-center rounded-xl px-4 py-3 mb-2 transition-all
+      relative flex items-center rounded-xl px-4 mb-2 transition-all
+      ${tracker ? 'pt-3 pb-2.5' : 'py-3'}
       ${isNext
         ? 'bg-go-green shadow-md shadow-go-green/30 text-white'
         : isPast
@@ -336,6 +438,7 @@ function TrainCard({
         </span>
       )}
 
+      {/* Departure */}
       <div className="flex-1">
         <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : 'text-go-dark'}`}>
           {trip.departure}
@@ -343,16 +446,42 @@ function TrainCard({
         <div className={`text-xs mt-0.5 ${isNext ? 'text-white/75' : 'text-gray-500'}`}>depart</div>
       </div>
 
-      <div className="flex flex-col items-center px-3">
-        <div className={`text-xs font-medium mb-1 ${isNext ? 'text-white/80' : 'text-gray-400'}`}>
+      {/* Center: trip time + arrow + tracker badges */}
+      <div className="flex flex-col items-center px-3 gap-1">
+        <div className={`text-xs font-medium ${isNext ? 'text-white/80' : 'text-gray-400'}`}>
           {trip.tripTime}
         </div>
         <div className="flex items-center gap-1">
-          <div className={`h-px w-8 ${isNext ? 'bg-white/50' : 'bg-gray-200'}`} />
+          <div className={`h-px w-6 ${isNext ? 'bg-white/50' : 'bg-gray-200'}`} />
           <ArrowRightIcon className={`w-3 h-3 ${isNext ? 'text-white/70' : 'text-gray-300'}`} />
         </div>
+        {/* Platform + Expected — only when tracker data available */}
+        {tracker && (
+          <div className="flex items-center gap-1 flex-wrap justify-center">
+            {tracker.platform && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md font-mono ${
+                isNext
+                  ? 'bg-white/25 text-white'
+                  : isPast
+                  ? 'bg-gray-100 text-gray-400'
+                  : 'bg-go-dark/10 text-go-dark'
+              }`}>
+                Plt {tracker.platform}
+              </span>
+            )}
+            {tracker.expected && !isPast && (
+              <ExpectedBadge
+                expected={tracker.expected}
+                delay={tracker.delay}
+                cancelled={tracker.cancelled}
+                isNext={isNext}
+              />
+            )}
+          </div>
+        )}
       </div>
 
+      {/* Arrival */}
       <div className="flex-1 text-right">
         <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : 'text-go-dark'}`}>
           {trip.arrival}
@@ -360,6 +489,7 @@ function TrainCard({
         <div className={`text-xs mt-0.5 ${isNext ? 'text-white/75' : 'text-gray-500'}`}>arrive</div>
       </div>
 
+      {/* Alert badge */}
       {hasAlert && (
         <button
           onClick={(e) => { e.stopPropagation(); onAlertClick(); }}
@@ -423,6 +553,9 @@ export default function Home() {
   const [nowMinutes, setNowMinutes] = useState<number | null>(null);
   const [todayStr, setTodayStr] = useState<string>('');
 
+  // Tracker state (platform + expected)
+  const [trackerTrips, setTrackerTrips] = useState<TrackerTrip[]>([]);
+
   // Alerts state
   const [alerts, setAlerts] = useState<ParsedAlert[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
@@ -441,6 +574,24 @@ export default function Home() {
     const id = setInterval(update, 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // Fetch tracker (platform + expected) every 30 seconds
+  const fetchTracker = useCallback(async () => {
+    try {
+      const res = await fetch('/api/tracker');
+      if (!res.ok) return;
+      const data = await res.json();
+      setTrackerTrips(data.trips ?? []);
+    } catch {
+      // non-critical
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTracker();
+    const id = setInterval(fetchTracker, 30_000);
+    return () => clearInterval(id);
+  }, [fetchTracker]);
 
   // Fetch alerts every 5 min
   const fetchAlerts = useCallback(async () => {
@@ -484,6 +635,12 @@ export default function Home() {
   const alertMap = useMemo(
     () => buildAlertMap(alerts, direction),
     [alerts, direction]
+  );
+
+  // Tracker lookup maps
+  const { inbound: trackerInbound, outbound: trackerOutbound } = useMemo(
+    () => buildTrackerMaps(trackerTrips),
+    [trackerTrips]
   );
 
   const totalAlerts = alerts.length;
@@ -616,6 +773,7 @@ export default function Home() {
               const isPast = isToday && nowMinutes !== null && parseTime(trip.departure) < nowMinutes;
               const isNext = i === nextIndex;
               const tripAlerts = alertMap.get(trip.departure) ?? [];
+              const tracker = getTrackerInfo(trip, direction, trackerInbound, trackerOutbound);
               return (
                 <div key={i} id={isNext ? 'next-train' : undefined}>
                   <TrainCard
@@ -623,6 +781,7 @@ export default function Home() {
                     isNext={isNext}
                     isPast={isPast}
                     alerts={tripAlerts}
+                    tracker={tracker}
                     onAlertClick={() => setShowAlertsSheet(true)}
                   />
                 </div>

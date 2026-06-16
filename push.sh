@@ -13,7 +13,7 @@ echo "Staging all files..."
 git add -A
 
 echo "Committing..."
-git commit -m "feat: service alerts sheet with bell icon + GO-style cards" || echo "(nothing new to commit)"
+git commit -m "feat: platform + expected status from gotracker.ca via /api/tracker" || echo "(nothing new to commit)"
 
 echo "Pushing to GitHub..."
 git push origin main
