@@ -692,10 +692,13 @@ function TrainCard({
   const hasAlert = alerts.length > 0;
   const depMins = timeToMinutes(trip.departure);
   const arrMins = depMins + parseInt(trip.tripTime, 10);
-  // Trip is currently running (between dep and arr, ±5 min grace)
+  // A trip is "now running" if we're between departure and arrival (±5 min grace).
+  // NOTE: isPast becomes true as soon as departure passes, so we must NOT include !isPast here.
   const isNowRunning = isToday && nowMinutes !== null
-    && nowMinutes >= depMins - 5 && nowMinutes <= arrMins + 5 && !isPast;
-  // Show "On Board" only when trip is today and currently in progress
+    && nowMinutes >= depMins - 5 && nowMinutes <= arrMins + 5;
+  // For display: only gray out if truly past (arrived) AND not currently running
+  const effectiveIsPast = isPast && !isNowRunning;
+  // Show "On Board" only when trip is in progress
   const canOnBoard = isNowRunning;
 
   const stops = useMemo(() => getStops(trip, direction), [trip, direction]);
@@ -705,7 +708,9 @@ function TrainCard({
       relative rounded-xl px-3 mb-2 transition-all overflow-hidden
       ${isNext
         ? 'bg-go-green shadow-md shadow-go-green/30 text-white'
-        : isPast
+        : isNowRunning
+        ? 'bg-amber-50 text-gray-800 shadow-sm border border-amber-200'
+        : effectiveIsPast
         ? 'bg-white/60 text-gray-400'
         : 'bg-white text-gray-800 shadow-sm'}
     `}>
@@ -731,14 +736,14 @@ function TrainCard({
         className="w-full flex items-center gap-2 pt-2 pb-3 text-left active:opacity-80"
       >
         {/* Vehicle badge */}
-        <VehicleBadge type={trip.vehicleType} isNext={isNext} isPast={isPast} />
+        <VehicleBadge type={trip.vehicleType} isNext={isNext} isPast={effectiveIsPast} />
 
         {/* Thin divider */}
         <div className={`w-px self-stretch ${isNext ? 'bg-white/20' : 'bg-gray-100'}`} />
 
         {/* Departure */}
         <div className="flex-1">
-          <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : 'text-go-dark'}`}>
+          <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : isNowRunning ? 'text-amber-700' : 'text-go-dark'}`}>
             {trip.departure}
           </div>
           <div className={`text-xs mt-0.5 ${isNext ? 'text-white/75' : 'text-gray-500'}`}>depart</div>
@@ -757,7 +762,7 @@ function TrainCard({
 
         {/* Arrival */}
         <div className="flex-1 text-right">
-          <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : 'text-go-dark'}`}>
+          <div className={`text-2xl font-bold leading-none ${isNext ? 'text-white' : isNowRunning ? 'text-go-dark' : 'text-go-dark'}`}>
             {trip.arrival}
           </div>
           <div className={`text-xs mt-0.5 ${isNext ? 'text-white/75' : 'text-gray-500'}`}>arrive</div>
@@ -789,7 +794,7 @@ function TrainCard({
       {/* Tracker row: platform + expected */}
       {tracker && (
         <div className="pb-3">
-          <TrackerRow tracker={tracker} isPast={isPast} isNext={isNext} />
+          <TrackerRow tracker={tracker} isPast={effectiveIsPast} isNext={isNext} />
         </div>
       )}
 
