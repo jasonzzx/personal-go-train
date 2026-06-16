@@ -798,15 +798,26 @@ export default function Home() {
             className="flex-1 bg-white/10 text-white text-sm rounded-lg px-3 py-2 border border-white/20 focus:outline-none focus:border-white/50"
           />
           <span className="text-white/60 text-xs shrink-0">{formatDisplayDate(selectedDate)}</span>
-          <button
-            onClick={() => {
-              setSelectedDate(getTomorrowStr());
-              setDirection('homeToOffice');
-            }}
-            className="shrink-0 bg-white/10 text-white text-xs font-semibold px-3 py-2 rounded-lg border border-white/20 hover:bg-white/20 transition-colors"
-          >
-            Tomorrow →
-          </button>
+          {isToday ? (
+            <button
+              onClick={() => {
+                setSelectedDate(getTomorrowStr());
+                setDirection('homeToOffice');
+              }}
+              className="shrink-0 bg-white/10 text-white text-xs font-semibold px-3 py-2 rounded-lg border border-white/20 hover:bg-white/20 transition-colors"
+            >
+              Tomorrow →
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setSelectedDate(todayStr);
+              }}
+              className="shrink-0 bg-go-accent text-white text-xs font-semibold px-3 py-2 rounded-lg hover:opacity-90 transition-opacity"
+            >
+              ← Today
+            </button>
+          )}
         </div>
       </header>
 
@@ -846,7 +857,7 @@ export default function Home() {
               const isPast = isToday && nowMinutes !== null && parseTime(trip.departure) < nowMinutes;
               const isNext = i === nextIndex;
               const tripAlerts = alertMap.get(trip.departure) ?? [];
-              const tracker = getTrackerInfo(trip, direction, trackerInbound, trackerOutbound);
+              const tracker = isToday ? getTrackerInfo(trip, direction, trackerInbound, trackerOutbound) : null;
               return (
                 <div key={i} id={isNext ? 'next-train' : undefined}>
                   <TrainCard
