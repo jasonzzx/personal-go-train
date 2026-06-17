@@ -81,9 +81,10 @@ interface TrackerInfo {
 }
 
 /**
- * Build lookup maps from tracker trips:
- *  inbound  (Inbound/SB)  key = ScheduledTime = departure from Unionville → match trip.departure
- *  outbound (Outbound/NB) key = ScheduledTime = arrival  at  Unionville → match trip.arrival
+ * Build lookup maps from tracker trips (source: railsix.com).
+ * Both directions key by scheduledTime = departure from origin station:
+ *  inbound  (SB) scheduledTime = departure from Unionville → match trip.departure
+ *  outbound (NB) scheduledTime = departure from Union      → match trip.departure
  */
 function buildTrackerMaps(trips: TrackerTrip[]): {
   inbound: Map<string, TrackerInfo>;
@@ -114,8 +115,9 @@ function getTrackerInfo(
   inbound: Map<string, TrackerInfo>,
   outbound: Map<string, TrackerInfo>
 ): TrackerInfo | null {
+  // railsix.com: scheduledTime = departure from origin for both directions
   if (direction === 'homeToOffice') return inbound.get(trip.departure) ?? null;
-  return outbound.get(trip.arrival) ?? null;
+  return outbound.get(trip.departure) ?? null;
 }
 
 // ──────────────────────────────────────────────────────────

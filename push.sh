@@ -13,7 +13,7 @@ echo "Staging all files..."
 git add -A
 
 echo "Committing..."
-git commit -m "feat: Add to Home Screen banner for iOS Safari and Android Chrome" || echo "(nothing new to commit)"
+git commit -m "feat: switch tracker source to railsix.com, adds Union→Unionville platform+status" || echo "(nothing new to commit)"
 
 echo "Pushing to GitHub..."
 git push origin main

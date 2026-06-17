@@ -1,27 +1,36 @@
 import { NextResponse } from 'next/server';
 
-// Station status API for Unionville GO on the Stouffville line (service 71, station UI)
-const TRACKER_URL =
-  'https://www.gotracker.ca/GoTracker/web/GODataAPIProxy.svc/StationStatusJSON/Service/StationCd/Lang/71/UI/en-us';
+// Railsix.com route pages — SvelteKit SSR embeds live trip data in script tags
+const RAILSIX_SB = 'https://railsix.com/routes/unionville-to-union';  // homeToOffice
+const RAILSIX_NB = 'https://railsix.com/routes/union-to-unionville';   // officeToHome
+
+const FETCH_HEADERS = {
+  'User-Agent':
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+  Accept: 'text/html,application/xhtml+xml,*/*',
+  'Accept-Language': 'en-CA,en;q=0.9',
+};
 
 export interface TrackerTrip {
-  /** "HH:MM" — departure from Unionville (Inbound/SB) OR arrival at Unionville (Outbound/NB) */
+  /** "HH:MM" — scheduled departure from origin station */
   scheduledTime: string;
-  /** "Inbound" = Southbound (Unionville → Union = homeToOffice) */
+  /** 'Inbound' = SB (Unionville→Union), 'Outbound' = NB (Union→Unionville) */
   directionCd: 'Inbound' | 'Outbound';
-  /** Platform number at Unionville GO, e.g. "2" or "3" */
+  /** Platform number, e.g. "2" or "-" if not yet assigned */
   platform: string;
-  /** "On Time", "Delayed", "Cancelled", or delay text */
+  /** "On Time", "Delayed", "Cancelled", "Waiting" */
   expected: string;
-  /** Delay in minutes */
+  /** Delay in minutes (positive = late) */
   delay: number;
-  /** True if train is cancelled */
+  /** True if cancelled */
   cancelled: boolean;
   /** Trip number */
   tripNumber: string;
-  /** Final destination station */
-  destination: string;
-  /** Human-readable time until arrival at Unionville, e.g. "39 minutes" */
+  /** Arrival time at destination */
+  arrivalTime: string;
+  /** Number of cars */
+  cars: string;
+  /** Human-readable until departure */
   arriveIn: string;
 }
 
@@ -32,56 +41,91 @@ export interface TrackerResponse {
   error?: string;
 }
 
+// SvelteKit embeds live data in:
+//   __sveltekit_XXXX.resolve(1, () => [[{...trips...}]])
+// We extract the JS object literal and convert it to JSON.
+function extractTrips(html: string): RailsixTrip[] {
+  const match = html.match(/__sveltekit_\w+\.resolve\(\s*1\s*,\s*\(\)\s*=>\s*(\[\[[\s\S]*?\]\])\s*\)/);
+  if (!match) return [];
+
+  // Convert JS object-literal keys to JSON quoted keys:
+  //   {key:"value"} → {"key":"value"}
+  const jsonLike = match[1].replace(/([{,]\s*)(\w+):/g, '$1"$2":');
+
+  try {
+    const outer = JSON.parse(jsonLike) as RailsixTrip[][];
+    return Array.isArray(outer[0]) ? outer[0] : [];
+  } catch {
+    return [];
+  }
+}
+
+function toHHMM(ts: number): string {
+  const d = new Date(ts);
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+function mapTrip(raw: RailsixTrip, dir: 'Inbound' | 'Outbound'): TrackerTrip {
+  const delayMs = (raw.actualAt ?? raw.scheduledAt) - raw.scheduledAt;
+  const delayMin = Math.round(delayMs / 60_000);
+
+  const rawStatus = raw.status ?? '';
+  const cancelled = rawStatus.toLowerCase().includes('cancel');
+  let expected = 'On Time';
+  if (cancelled) {
+    expected = 'Cancelled';
+  } else if (rawStatus.toUpperCase() === 'WAIT') {
+    expected = 'Waiting';
+  } else if (delayMin > 0) {
+    expected = `+${delayMin} min`;
+  }
+
+  // Arrival time: railsix gives it directly, or derive from actualAt + duration
+  const arrivalTime = raw.arrivalTime ?? '';
+
+  return {
+    scheduledTime: raw.scheduledTime ?? '',
+    directionCd: dir,
+    platform: raw.platform && raw.platform !== '-' ? raw.platform : '',
+    expected,
+    delay: delayMin > 0 ? delayMin : 0,
+    cancelled,
+    tripNumber: raw.tripNumber ?? '',
+    arrivalTime,
+    cars: raw.cars ?? '',
+    arriveIn: '',
+  };
+}
+
+async function fetchPage(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: FETCH_HEADERS,
+    next: { revalidate: 30 },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
+  return res.text();
+}
+
 export async function GET(): Promise<NextResponse<TrackerResponse>> {
   const cacheHeaders = {
     'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
   };
 
   try {
-    const res = await fetch(TRACKER_URL, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
-        Accept: 'text/xml, application/xml, */*',
-        Referer: 'https://www.gotracker.ca/gotracker/web/',
-        'Accept-Language': 'en-CA,en;q=0.9',
-      },
-      // Next.js fetch cache — re-validate every 30 seconds
-      next: { revalidate: 30 },
-    });
+    const [sbHtml, nbHtml] = await Promise.all([
+      fetchPage(RAILSIX_SB),
+      fetchPage(RAILSIX_NB),
+    ]);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        { trips: [], available: false, lastUpdated: null, error: `HTTP ${res.status}` },
-        { headers: cacheHeaders }
-      );
-    }
+    const sbRaw = extractTrips(sbHtml);
+    const nbRaw = extractTrips(nbHtml);
 
-    const xml = await res.text();
-
-    // Response is XML: <?xml ...><ReturnStringValue ...><Data>{json}</Data></ReturnStringValue>
-    const dataMatch = xml.match(/<Data>([\s\S]*?)<\/Data>/);
-    if (!dataMatch) {
-      return NextResponse.json(
-        { trips: [], available: false, lastUpdated: null, error: 'No <Data> in response' },
-        { headers: cacheHeaders }
-      );
-    }
-
-    const data = JSON.parse(dataMatch[1]) as { TripStatus?: RawTrip[] };
-    const rawTrips: RawTrip[] = data.TripStatus ?? [];
-
-    const trips: TrackerTrip[] = rawTrips.map((t) => ({
-      scheduledTime: t.ScheduledTime ?? '',
-      directionCd: (t.DirectionCd === 'Inbound' ? 'Inbound' : 'Outbound') as TrackerTrip['directionCd'],
-      platform: t.Track ?? '',
-      expected: t.Expected ?? '',
-      delay: Number(t.Delay ?? 0),
-      cancelled: Boolean(t.TripCancelled),
-      tripNumber: t.TripNumber ?? '',
-      destination: t.Destination ?? '',
-      arriveIn: t.ArriveIn ?? '',
-    }));
+    const trips: TrackerTrip[] = [
+      ...sbRaw.map((t) => mapTrip(t, 'Inbound')),
+      ...nbRaw.map((t) => mapTrip(t, 'Outbound')),
+    ];
 
     return NextResponse.json(
       { trips, available: true, lastUpdated: new Date().toISOString() },
@@ -96,20 +140,19 @@ export async function GET(): Promise<NextResponse<TrackerResponse>> {
   }
 }
 
-// Raw shape from gotracker.ca JSON (inside XML <Data>)
-interface RawTrip {
-  RowIndex?: number;
-  TripNumber?: string;
-  Expected?: string;
-  Direction?: string;
-  DirectionCd?: string;
-  ScheduledTime?: string;
-  Track?: string;
-  Delay?: number;
-  DelaySec?: number;
-  DelayDesc?: string;
-  TripCancelled?: boolean;
-  Destination?: string;
-  ArriveIn?: string;
-  StoppingAt?: string;
+// Raw shape from railsix.com SvelteKit SSR data
+interface RailsixTrip {
+  line?: string;
+  lineName?: string;
+  scheduledTime?: string;
+  scheduledAt: number;
+  actualAt?: number;
+  arrivalTime?: string;
+  status?: string;
+  platform?: string;
+  stops?: string[];
+  lastStopId?: string;
+  cars?: string;
+  tripNumber?: string;
+  routeType?: number;
 }
