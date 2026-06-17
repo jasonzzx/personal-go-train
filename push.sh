@@ -13,7 +13,7 @@ echo "Staging all files..."
 git add -A
 
 echo "Committing..."
-git commit -m "feat: live stop data from railsix, correct Stouffville stations (Milliken/Agincourt/Kennedy), bus direct" || echo "(nothing new to commit)"
+git commit -m "fix: disable API route caching so tracker data is always live, not stale from CDN" || echo "(nothing new to commit)"
 
 echo "Pushing to GitHub..."
 git push origin main

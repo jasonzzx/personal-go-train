@@ -105,15 +105,18 @@ function mapTrip(raw: RailsixTrip, dir: 'Inbound' | 'Outbound'): TrackerTrip {
 async function fetchPage(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: FETCH_HEADERS,
-    next: { revalidate: 30 },
+    cache: 'no-store',  // bypass Next.js data cache — always fetch live from railsix
   });
   if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
   return res.text();
 }
 
+export const dynamic = 'force-dynamic'; // prevent Vercel from caching this route at the edge
+
 export async function GET(): Promise<NextResponse<TrackerResponse>> {
+  // No CDN/browser caching — the client polls every 30s itself
   const cacheHeaders = {
-    'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
   };
 
   try {
