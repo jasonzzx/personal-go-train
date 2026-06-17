@@ -673,6 +673,7 @@ function TrainCard({
   isToday,
   isExpanded,
   isOnBoard,
+  liveStops,
   onToggleExpand,
   onToggleOnBoard,
   onAlertClick,
