@@ -28,6 +28,8 @@ export interface TrackerTrip {
   tripNumber: string;
   /** Arrival time at destination */
   arrivalTime: string;
+  /** Live stop names from railsix (excludes origin, includes destination) */
+  stops: string[];
   /** Number of cars */
   cars: string;
   /** Human-readable until departure */
@@ -96,6 +98,7 @@ function mapTrip(raw: RailsixTrip, dir: 'Inbound' | 'Outbound'): TrackerTrip {
     arrivalTime,
     cars: raw.cars ?? '',
     arriveIn: '',
+    stops: raw.stops ?? [],
   };
 }
 

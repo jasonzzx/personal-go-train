@@ -687,6 +687,7 @@ function TrainCard({
   isToday: boolean;
   isExpanded: boolean;
   isOnBoard: boolean;
+  liveStops: string[];
   onToggleExpand: () => void;
   onToggleOnBoard: () => void;
   onAlertClick: () => void;
@@ -703,7 +704,11 @@ function TrainCard({
   // Show "On Board" only when trip is in progress
   const canOnBoard = isNowRunning;
 
-  const stops = useMemo(() => getStops(trip, direction), [trip, direction]);
+  // Use live stop names from tracker when available, otherwise use schedule-based pattern
+  const stops = useMemo(
+    () => getStops(trip, direction, liveStops.length > 0 ? liveStops : undefined),
+    [trip, direction, liveStops]
+  );
 
   return (
     <div className={`
@@ -1124,6 +1129,17 @@ export default function Home() {
     [trackerTrips]
   );
 
+  // Live stop names from tracker: "directionCd:scheduledTime" → stops[]
+  const trackerStopsMap = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const t of trackerTrips) {
+      if (t.stops && t.stops.length > 0) {
+        m.set(`${t.directionCd}:${t.scheduledTime}`, t.stops);
+      }
+    }
+    return m;
+  }, [trackerTrips]);
+
   const totalAlerts = alerts.length;
 
   // For today: scroll to next train. For other dates: scroll to first train at/after 8am.
@@ -1312,6 +1328,9 @@ export default function Home() {
               const tracker = isToday ? getTrackerInfo(trip, direction, trackerInbound, trackerOutbound) : null;
               const isExpanded = expandedDep === trip.departure;
               const isOnBoard = onBoardDep === trip.departure;
+              // Look up live stops from railsix tracker data
+              const dirKey = direction === 'homeToOffice' ? 'Inbound' : 'Outbound';
+              const liveStops = trackerStopsMap.get(`${dirKey}:${trip.departure}`) ?? [];
               return (
                 <div key={i} id={i === scrollTargetIndex ? 'scroll-target' : undefined}>
                   <TrainCard
@@ -1325,6 +1344,7 @@ export default function Home() {
                     isToday={isToday}
                     isExpanded={isExpanded}
                     isOnBoard={isOnBoard}
+                    liveStops={liveStops}
                     onToggleExpand={() => setExpandedDep(isExpanded ? null : trip.departure)}
                     onToggleOnBoard={() => setOnBoardDep(isOnBoard ? null : trip.departure)}
                     onAlertClick={() => setShowAlertsSheet(true)}
