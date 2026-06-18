@@ -1240,7 +1240,7 @@ export default function Home() {
             }`}
           >
             <div className="text-xs leading-tight">🏠 Unionville</div>
-            <div className="text-[10px] text-white/60">→ Union</div>
+            <div className="text-xs text-white/60">→ Union</div>
           </button>
           <button
             onClick={() => setDirection('officeToHome')}
@@ -1249,7 +1249,7 @@ export default function Home() {
             }`}
           >
             <div className="text-xs leading-tight">🏢 Union</div>
-            <div className="text-[10px] text-white/60">→ Unionville</div>
+            <div className="text-xs text-white/60">→ Unionville</div>
           </button>
         </div>
 
